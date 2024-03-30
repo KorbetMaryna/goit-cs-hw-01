@@ -10,6 +10,10 @@ class TokenType:
     INTEGER = "INTEGER"
     PLUS = "PLUS"
     MINUS = "MINUS"
+    MUL = "MUL"
+    DIV = "DIV"
+    LPAREN = "LPAREN"
+    RPAREN = "RPAREN"
     EOF = "EOF"  # Indicates the end of the input line
 
 
@@ -66,6 +70,22 @@ class Lexer:
             if self.current_char == "-":
                 self.advance()
                 return Token(TokenType.MINUS, "-")
+            
+            if self.current_char == "*":
+                self.advance()
+                return Token(TokenType.MUL, "*")
+            
+            if self.current_char == "/":
+                self.advance()
+                return Token(TokenType.DIV, "/")
+            
+            if self.current_char == "(":
+                self.advance()
+                return Token(TokenType.LPAREN, "(")
+            
+            if self.current_char == ")":
+                self.advance()
+                return Token(TokenType.RPAREN, ")")
 
             raise LexicalError("Lexical analysis error")
 
@@ -109,9 +129,27 @@ class Parser:
 
     def term(self):
         """Parser for 'term' grammar rules. In our case, these are integers"""
+        node = self.factor()
+        while self.current_token.type in (TokenType.MUL, TokenType.DIV):
+            token = self.current_token
+            if token.type == TokenType.MUL:
+                self.eat(TokenType.MUL)
+            elif token.type == TokenType.DIV:
+                self.eat(TokenType.DIV)
+            node = BinOp(left=node, op=token, right=self.factor())
+        return node
+    
+    def factor(self):
+        """Parser for 'factor' grammar rules"""
         token = self.current_token
-        self.eat(TokenType.INTEGER)
-        return Num(token)
+        if token.type == TokenType.INTEGER:
+            self.eat(TokenType.INTEGER)
+            return Num(token)
+        elif token.type == TokenType.LPAREN:
+            self.eat(TokenType.LPAREN)
+            node = self.expr()
+            self.eat(TokenType.RPAREN)
+            return node
 
     def expr(self):
         """Parser for arithmetic expressions"""
@@ -153,6 +191,10 @@ class Interpreter:
             return self.visit(node.left) + self.visit(node.right)
         elif node.op.type == TokenType.MINUS:
             return self.visit(node.left) - self.visit(node.right)
+        elif node.op.type == TokenType.MUL:  
+            return self.visit(node.left) * self.visit(node.right)  
+        elif node.op.type == TokenType.DIV: 
+            return self.visit(node.left) / self.visit(node.right)  
 
     def visit_Num(self, node):
         return node.value
@@ -188,3 +230,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
